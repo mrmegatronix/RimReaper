@@ -1,0 +1,14 @@
+{
+  "name": "pothole-reporter-nz",
+  "version": "1.0.0",
+  "description": "Real-time Pothole and Road Hazard Reporter for Waimate and Christchurch, South Island, New Zealand",
+  "main": "index.html",
+  "scripts": {
+    "dev": "serve -l 3001",
+    "start": "serve -l 3001"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}

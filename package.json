@@ -1,0 +1,14 @@
+{
+  "name": "ct-neon-landing",
+  "version": "1.0.0",
+  "description": "CT-NEON // PROJECT BLADE. Shadcn-style landing page with custom cyberpunk aesthetics.",
+  "main": "index.html",
+  "scripts": {
+    "dev": "serve -l 3000",
+    "start": "serve -l 3000"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}
