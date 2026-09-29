@@ -1,444 +1,799 @@
 /* ==========================================================================
-   CT-NEON // CLIENT-SIDE LOGIC & INTERACTION
+   RimReaper // REAL-TIME POTHOLE TRACKER ENGINE
+   Waimate District & Christchurch City, South Island, New Zealand
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
-  // --- STATE ---
-  let soundEnabled = false;
+  // --- CONFIGURATION & REGIONS ---
+  const REGIONS = {
+    christchurch: { lat: -43.5321, lng: 172.6362, zoom: 13, name: 'Christchurch City' },
+    waimate: { lat: -44.7333, lng: 171.0500, zoom: 14, name: 'Waimate District' },
+    canterbury: { lat: -44.1500, lng: 171.8500, zoom: 8, name: 'Canterbury South Island' }
+  };
+
+  let activeRegionKey = 'canterbury';
+  let isFrozen = false;
+  let soundEnabled = true;
   let audioCtx = null;
-  let tempInterval = null;
 
-  // --- SELECTORS ---
-  const soundToggleBtn = document.getElementById('sound-toggle');
-  const soundOnIcon = soundToggleBtn.querySelector('.icon-sound-on');
-  const soundOffIcon = soundToggleBtn.querySelector('.icon-sound-off');
+  // --- INITIAL SEED INCIDENTS (Christchurch & Waimate) ---
+  const INITIAL_INCIDENTS = [
+    {
+      id: 'pot-wmt-01',
+      address: 'Queen St & High St, Waimate',
+      lat: -44.7328,
+      lng: 171.0492,
+      council: 'Waimate District Council',
+      region: 'Waimate',
+      severity: 'Critical',
+      lane: 'Main Traffic Lane',
+      desc: 'Deep jagged asphalt crater near heritage silos; cars forced to swerve towards oncoming traffic.',
+      photo: 'deep-pothole',
+      reportedAt: Date.now() - 1000 * 60 * 35, // 35 mins ago
+      status: 'Active',
+      upvotes: 14,
+      upvotedByUser: false
+    },
+    {
+      id: 'pot-wmt-02',
+      address: 'Gorge Road (SH82), Waimate',
+      lat: -44.7410,
+      lng: 171.0620,
+      council: 'NZTA Waka Kotahi',
+      region: 'State Highway',
+      severity: 'Moderate',
+      lane: 'Left Shoulder / Kerb',
+      desc: 'Edge tarmac breaking apart along heavy transport corridor towards Makikihi junction.',
+      photo: 'gravel-edge',
+      reportedAt: Date.now() - 1000 * 60 * 140, // 2.3 hrs ago
+      status: 'Scheduled',
+      upvotes: 7,
+      upvotedByUser: false
+    },
+    {
+      id: 'pot-wmt-03',
+      address: 'Timaru Road & Mill Rd, Waimate',
+      lat: -44.7260,
+      lng: 171.0540,
+      council: 'Waimate District Council',
+      region: 'Waimate',
+      severity: 'Minor',
+      lane: 'Cycle Lane / Verge',
+      desc: 'Cluster of surface craters expanding after wet weekend frost.',
+      photo: 'urban-crevice',
+      reportedAt: Date.now() - 1000 * 60 * 320, // 5.3 hrs ago
+      status: 'Active',
+      upvotes: 3,
+      upvotedByUser: false
+    },
+    {
+      id: 'pot-chc-01',
+      address: 'Brougham St (SH76) near Antigua St, Christchurch',
+      lat: -43.5420,
+      lng: 172.6310,
+      council: 'NZTA Waka Kotahi',
+      region: 'State Highway',
+      severity: 'Critical',
+      lane: 'Main Traffic Lane',
+      desc: 'Severe 75mm deep rim breaker in westbound freight lane; multiple burst tyre reports.',
+      photo: 'deep-pothole',
+      reportedAt: Date.now() - 1000 * 60 * 18, // 18 mins ago
+      status: 'Active',
+      upvotes: 29,
+      upvotedByUser: false
+    },
+    {
+      id: 'pot-chc-02',
+      address: 'Riccarton Rd near Westfield Mall, Christchurch',
+      lat: -43.5295,
+      lng: 172.5980,
+      council: 'Christchurch City Council',
+      region: 'Christchurch',
+      severity: 'Moderate',
+      lane: 'Intersection / Roundabout',
+      desc: 'Sinkhole forming along bus stop curb zone; high impact during evening commute.',
+      photo: 'urban-crevice',
+      reportedAt: Date.now() - 1000 * 60 * 85, // 1.4 hrs ago
+      status: 'Active',
+      upvotes: 18,
+      upvotedByUser: false
+    },
+    {
+      id: 'pot-chc-03',
+      address: 'Moorhouse Ave & Colombo St, Christchurch',
+      lat: -43.5401,
+      lng: 172.6360,
+      council: 'Christchurch City Council',
+      region: 'Christchurch',
+      severity: 'Critical',
+      lane: 'Centerline / Divider',
+      desc: 'Asphalt crumbling between lane markers; dangerous for motorcyclists & cyclists.',
+      photo: 'deep-pothole',
+      reportedAt: Date.now() - 1000 * 60 * 220, // 3.6 hrs ago
+      status: 'Scheduled',
+      upvotes: 11,
+      upvotedByUser: false
+    },
+    {
+      id: 'pot-chc-04',
+      address: 'Linwood Ave & Aldwins Rd, Christchurch',
+      lat: -43.5350,
+      lng: 172.6680,
+      council: 'Christchurch City Council',
+      region: 'Christchurch',
+      severity: 'Fixed',
+      lane: 'Main Traffic Lane',
+      desc: 'Permanent hot-mix patch completed by Christchurch City Council contractor crews.',
+      photo: 'urban-crevice',
+      reportedAt: Date.now() - 1000 * 60 * 600, // 10 hrs ago
+      status: 'Repaired',
+      upvotes: 22,
+      upvotedByUser: false
+    }
+  ];
 
-  const previewBlade = document.getElementById('preview-blade');
-  const synthesisBtn = document.getElementById('synthesis-btn');
-  const selectCore = document.getElementById('select-core');
+  // Load from LocalStorage or seed
+  let incidents = [];
+  try {
+    const saved = localStorage.getItem('nz_pothole_incidents');
+    if (saved) {
+      incidents = JSON.parse(saved);
+    } else {
+      incidents = [...INITIAL_INCIDENTS];
+      localStorage.setItem('nz_pothole_incidents', JSON.stringify(incidents));
+    }
+  } catch (e) {
+    incidents = [...INITIAL_INCIDENTS];
+  }
 
-  // Diagnostic Stats
-  const diagTemp = document.getElementById('diag-temp');
-  const diagWave = document.getElementById('diag-wave');
-  const diagHarmony = document.getElementById('diag-harmony');
-  const diagPower = document.getElementById('blade-diag-power');
-
-  // Terminal Selectors
-  const terminalInput = document.getElementById('terminal-input');
-  const terminalOutput = document.getElementById('terminal-output');
-
-  // Form Selectors
-  const syndicateForm = document.getElementById('syndicate-form');
-  const successDialog = document.getElementById('success-dialog');
-  const closeDialogBtn = document.getElementById('close-dialog-btn');
-
-  // Mobile Menu Selector
-  const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
-  const navLinks = document.querySelector('.nav-links');
-
-  // --- AUDIO SYNTHESIZER (Web Audio API) ---
+  // --- AUDIO SYNTHESIS ENGINE (Web Audio API) ---
   function initAudio() {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
   }
 
+  function playAlertSound(isEmergency = false) {
+    if (!soundEnabled) return;
+    initAudio();
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = isEmergency ? 'sawtooth' : 'triangle';
+    osc.frequency.setValueAtTime(isEmergency ? 880 : 540, now);
+    osc.frequency.exponentialRampToValueAtTime(isEmergency ? 440 : 280, now + 0.25);
+
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.25);
+  }
+
   function playClickSound() {
     if (!soundEnabled) return;
     initAudio();
-    
+    const now = audioCtx.currentTime;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.exponentialRampToValueAtTime(200, now + 0.05);
+
+    gain.gain.setValueAtTime(0.04, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-    
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.08);
-    
-    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
-    
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.08);
+
+    osc.start(now);
+    osc.stop(now + 0.05);
   }
 
-  function playIgnitionSound() {
-    if (!soundEnabled) return;
-    initAudio();
-    
-    const osc1 = audioCtx.createOscillator();
-    const osc2 = audioCtx.createOscillator();
-    const filter = audioCtx.createBiquadFilter();
-    const gain = audioCtx.createGain();
-    
-    osc1.connect(filter);
-    osc2.connect(filter);
-    filter.connect(gain);
-    gain.connect(audioCtx.destination);
-    
-    osc1.type = 'sawtooth';
-    osc1.frequency.setValueAtTime(80, audioCtx.currentTime);
-    osc1.frequency.linearRampToValueAtTime(320, audioCtx.currentTime + 0.35);
-    
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(40, audioCtx.currentTime);
-    osc2.frequency.linearRampToValueAtTime(160, audioCtx.currentTime + 0.35);
-    
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(200, audioCtx.currentTime);
-    filter.frequency.exponentialRampToValueAtTime(2000, audioCtx.currentTime + 0.35);
-    
-    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
-    
-    osc1.start();
-    osc2.start();
-    
-    osc1.stop(audioCtx.currentTime + 0.6);
-    osc2.stop(audioCtx.currentTime + 0.6);
-  }
+  // Sound toggle button
+  const soundToggleBtn = document.getElementById('sound-toggle-btn');
+  const soundOnIcon = soundToggleBtn.querySelector('.sound-on');
+  const soundOffIcon = soundToggleBtn.querySelector('.sound-off');
 
-  function playChordSound(isSuccess = true) {
-    if (!soundEnabled) return;
-    initAudio();
-    
-    const now = audioCtx.currentTime;
-    const freqs = isSuccess ? [261.63, 329.63, 392.00, 523.25] : [180.00, 175.00, 160.00]; // C Major vs Discordant Buzz
-    const duration = isSuccess ? 0.4 : 0.35;
-    
-    freqs.forEach(freq => {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      
-      osc.type = isSuccess ? 'sine' : 'sawtooth';
-      osc.frequency.setValueAtTime(freq, now);
-      
-      gain.gain.setValueAtTime(isSuccess ? 0.05 : 0.08, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-      
-      osc.start();
-      osc.stop(now + duration);
-    });
-  }
-
-  // --- SOUND TOGGLE ---
   soundToggleBtn.addEventListener('click', () => {
     soundEnabled = !soundEnabled;
     if (soundEnabled) {
       soundOnIcon.classList.remove('hide');
       soundOffIcon.classList.add('hide');
-      initAudio();
-      // Brief chime to show sound is active
-      playChordSound(true);
+      playClickSound();
     } else {
       soundOnIcon.classList.add('hide');
       soundOffIcon.classList.remove('hide');
     }
   });
 
-  // --- CUSTOMIZER CONTROLS ---
+  // --- MANDATORY BLINKING COLON NZ CLOCK ---
+  const clkHours = document.getElementById('clk-hours');
+  const clkMins = document.getElementById('clk-mins');
+  const clkSecs = document.getElementById('clk-secs');
+  const clkAmpm = document.getElementById('clk-ampm');
 
-  // Handle color switches
-  document.querySelectorAll('input[name="blade-color"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      const color = e.target.value;
-      previewBlade.setAttribute('data-color', color);
-      playClickSound();
-      updateDiagnostics();
-    });
+  function updateNZClock() {
+    const nzDate = new Date();
+    // Format in Pacific/Auckland
+    const options = { timeZone: 'Pacific/Auckland', hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+    const timeStr = nzDate.toLocaleTimeString('en-NZ', options);
+    
+    // Parse formatted time string (e.g. "08:35:42 PM")
+    const match = timeStr.match(/(\d+):(\d+):(\d+)\s*(AM|PM)/i);
+    if (match) {
+      clkHours.textContent = match[1];
+      clkMins.textContent = match[2];
+      clkSecs.textContent = match[3];
+      clkAmpm.textContent = match[4].toUpperCase();
+    }
+  }
+  updateNZClock();
+  setInterval(updateNZClock, 1000);
+
+  // --- LEAFLET MAP INITIALIZATION ---
+  const map = L.map('pothole-map', {
+    center: [REGIONS.canterbury.lat, REGIONS.canterbury.lng],
+    zoom: REGIONS.canterbury.zoom,
+    zoomControl: false
   });
 
-  // Handle core resonance selection
-  selectCore.addEventListener('change', (e) => {
-    const core = e.target.value;
-    previewBlade.setAttribute('data-core', core);
+  // Re-position zoom controls to top-right
+  L.control.zoom({ position: 'topright' }).addTo(map);
+
+  // OpenStreetMap Public Tiles (No API key required)
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  // Marker Cluster / Layer
+  const markersLayer = L.layerGroup().addTo(map);
+  const markerLookup = new Map();
+
+  // Create Custom Pulsing Marker
+  function createCustomMarker(incident) {
+    const sevClass = incident.status === 'Repaired' ? 'fixed' : incident.severity.toLowerCase();
+    const html = `
+      <div class="pothole-custom-marker ${sevClass}">
+        <div class="marker-ring"></div>
+        <div class="marker-core"></div>
+      </div>
+    `;
+
+    const icon = L.divIcon({
+      className: 'custom-div-icon',
+      html: html,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+      popupAnchor: [0, -14]
+    });
+
+    const marker = L.marker([incident.lat, incident.lng], { icon: icon });
+
+    // Popup content
+    const timeAgoStr = getTimeAgo(incident.reportedAt);
+    const popupContent = `
+      <div class="popup-inner">
+        <div class="popup-header">
+          <span class="popup-tag ${sevClass}">${incident.severity.toUpperCase()}</span>
+          <span class="popup-time">${timeAgoStr}</span>
+        </div>
+        <div class="popup-address" title="${escapeHtml(incident.address)}">${escapeHtml(incident.address)}</div>
+        <div class="popup-desc">${escapeHtml(incident.desc || 'Reported road surface hazard.')}</div>
+        <div class="popup-meta">
+          <span><strong>Council:</strong> ${escapeHtml(incident.council)}</span>
+          <span><strong>Lane:</strong> ${escapeHtml(incident.lane)}</span>
+          <span><strong>Status:</strong> ${escapeHtml(incident.status)}</span>
+        </div>
+        <div class="popup-btn-row">
+          <button class="popup-btn primary" onclick="window.upvoteIncident('${incident.id}')">
+            👍 Confirm Here (${incident.upvotes})
+          </button>
+          <button class="popup-btn" onclick="window.toggleFixed('${incident.id}')">
+            ${incident.status === 'Repaired' ? 'Mark Active' : 'Mark Fixed'}
+          </button>
+        </div>
+      </div>
+    `;
+
+    marker.bindPopup(popupContent);
+    marker.on('click', () => {
+      playClickSound();
+      highlightFeedCard(incident.id);
+    });
+
+    return marker;
+  }
+
+  // Render all markers onto the map
+  function renderMapMarkers() {
+    markersLayer.clearLayers();
+    markerLookup.clear();
+
+    const filtered = getFilteredIncidents();
+    filtered.forEach(incident => {
+      const marker = createCustomMarker(incident);
+      marker.addTo(markersLayer);
+      markerLookup.set(incident.id, marker);
+    });
+  }
+
+  // Time-ago formatting helper
+  function getTimeAgo(timestamp) {
+    const elapsed = Date.now() - timestamp;
+    const mins = Math.floor(elapsed / (1000 * 60));
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>'"]/g, tag => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;'
+    }[tag] || tag));
+  }
+
+  // --- STATS STRIP UPDATES ---
+  function updateStats() {
+    const active = incidents.filter(i => i.status !== 'Repaired').length;
+    const critical = incidents.filter(i => i.severity === 'Critical' && i.status !== 'Repaired').length;
+    const fixed = incidents.filter(i => i.status === 'Repaired').length;
+
+    document.getElementById('stat-active').textContent = active;
+    document.getElementById('stat-critical').textContent = critical;
+    document.getElementById('stat-fixed').textContent = fixed;
+    document.getElementById('feed-counter').textContent = `${incidents.length} reports`;
+  }
+
+  // --- REAL-TIME FEED SIDEBAR ---
+  const feedList = document.getElementById('pothole-feed-list');
+
+  function renderFeedList() {
+    feedList.innerHTML = '';
+    const filtered = getFilteredIncidents();
+
+    if (filtered.length === 0) {
+      feedList.innerHTML = `
+        <div style="padding: 2rem 1rem; text-align: center; color: var(--text-dim); font-size: 0.85rem;">
+          No pothole incidents match the selected filters.
+        </div>
+      `;
+      return;
+    }
+
+    filtered.forEach(incident => {
+      const sevClass = incident.status === 'Repaired' ? 'fixed' : incident.severity.toLowerCase();
+      const card = document.createElement('div');
+      card.className = 'incident-card';
+      card.id = `card-${incident.id}`;
+
+      card.innerHTML = `
+        <div class="incident-card-top">
+          <div class="incident-badge-row">
+            <span class="incident-severity ${sevClass}">${incident.severity.toUpperCase()}</span>
+            <span class="incident-council" title="${escapeHtml(incident.council)}">${escapeHtml(incident.council)}</span>
+          </div>
+          <span class="incident-time">${getTimeAgo(incident.reportedAt)}</span>
+        </div>
+
+        <div class="incident-address" title="${escapeHtml(incident.address)}">${escapeHtml(incident.address)}</div>
+        <div class="incident-details">${escapeHtml(incident.desc || 'Hazard reported on road surface.')}</div>
+
+        <div class="incident-footer">
+          <span class="incident-lane">${escapeHtml(incident.lane)}</span>
+          <div class="incident-actions">
+            <button class="upvote-btn ${incident.upvotedByUser ? 'upvoted' : ''}" onclick="window.upvoteIncident('${incident.id}')">
+              👍 <span>${incident.upvotes}</span>
+            </button>
+          </div>
+        </div>
+      `;
+
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.upvote-btn')) return;
+        flyToIncident(incident.id);
+      });
+
+      feedList.appendChild(card);
+    });
+  }
+
+  function highlightFeedCard(id) {
+    document.querySelectorAll('.incident-card').forEach(c => c.classList.remove('highlight'));
+    const targetCard = document.getElementById(`card-${id}`);
+    if (targetCard) {
+      targetCard.classList.add('highlight');
+      targetCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  function flyToIncident(id) {
+    const inc = incidents.find(i => i.id === id);
+    if (!inc) return;
     playClickSound();
-    updateDiagnostics();
-  });
+    highlightFeedCard(id);
 
-  // Handle hilt material segmented controls
-  document.querySelectorAll('input[name="hilt-material"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      const hilt = e.target.value;
-      previewBlade.setAttribute('data-hilt', hilt);
+    map.flyTo([inc.lat, inc.lng], 16, { duration: 1 });
+    const marker = markerLookup.get(id);
+    if (marker) {
+      setTimeout(() => marker.openPopup(), 1050);
+    }
+  }
+
+  // --- FILTERS LOGIC ---
+  const filterRegion = document.getElementById('filter-region');
+  const filterSeverity = document.getElementById('filter-severity');
+  const filterStatus = document.getElementById('filter-status');
+
+  function getFilteredIncidents() {
+    const reg = filterRegion.value;
+    const sev = filterSeverity.value;
+    const stat = filterStatus.value;
+
+    return incidents.filter(i => {
+      if (reg !== 'all' && i.region !== reg) return false;
+      if (sev !== 'all' && i.severity !== sev) return false;
+      if (stat !== 'all') {
+        if (stat === 'Active' && i.status === 'Repaired') return false;
+        if (stat === 'Scheduled' && i.status !== 'Scheduled') return false;
+        if (stat === 'Repaired' && i.status !== 'Repaired') return false;
+      }
+      return true;
+    }).sort((a, b) => b.reportedAt - a.reportedAt);
+  }
+
+  [filterRegion, filterSeverity, filterStatus].forEach(select => {
+    select.addEventListener('change', () => {
       playClickSound();
+      renderMapMarkers();
+      renderFeedList();
     });
   });
 
-  // Synthesize button click triggers animation
-  synthesisBtn.addEventListener('click', () => {
-    playIgnitionSound();
-    
-    // Add micro-flash animation to core
-    const plasma = previewBlade.querySelector('.blade-plasma-container');
-    plasma.style.animation = 'none';
-    // Trigger reflow
-    void plasma.offsetWidth;
-    
-    // Re-apply correct animations based on setting
-    const core = previewBlade.getAttribute('data-core');
-    if (core === 'pulsing') {
-      plasma.style.animation = 'blade-ignite 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, pulse-core 2.5s ease-in-out infinite alternate';
-    } else if (core === 'overloaded') {
-      plasma.style.animation = 'blade-ignite 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, flicker-core 0.15s infinite';
-    } else {
-      plasma.style.animation = 'blade-ignite 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
-    }
+  // --- REGION TABS (Christchurch / Waimate / All Canterbury) ---
+  const regionButtons = document.querySelectorAll('.region-btn');
 
-    logToTerminal(`SYSTEM: Initiating plasma core synthesis... Sequence complete. Configuration compiled.`);
+  function setRegion(regionKey) {
+    const reg = REGIONS[regionKey];
+    if (!reg) return;
+
+    activeRegionKey = regionKey;
+    regionButtons.forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-region') === regionKey);
+    });
+
+    playClickSound();
+    map.flyTo([reg.lat, reg.lng], reg.zoom, { duration: 1.2 });
+  }
+
+  regionButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      setRegion(btn.getAttribute('data-region'));
+    });
   });
 
-  // Update stats dynamically based on customizer choices
-  function updateDiagnostics() {
-    const color = previewBlade.getAttribute('data-color');
-    const core = previewBlade.getAttribute('data-core');
-    
-    // Update Wavelength
-    let wave = '485 nm';
-    if (color === 'pink') wave = '620 nm';
-    if (color === 'green') wave = '525 nm';
-    if (color === 'gold') wave = '590 nm';
-    diagWave.textContent = wave;
+  document.getElementById('recenter-btn').addEventListener('click', () => {
+    setRegion(activeRegionKey);
+  });
 
-    // Update Harmony
-    let harmony = 'SYNCED';
-    if (core === 'pulsing') harmony = 'PULSING';
-    if (core === 'overloaded') harmony = 'UNSTABLE';
-    diagHarmony.textContent = harmony;
+  // --- REPORT DIALOG & REVERSE GEOCODING ---
+  const reportDialog = document.getElementById('report-dialog');
+  const openReportBtn = document.getElementById('open-report-btn');
+  const closeModalBtn = document.getElementById('close-modal-btn');
+  const cancelReportBtn = document.getElementById('cancel-report-btn');
+  const reportForm = document.getElementById('report-form');
+
+  const txtAddress = document.getElementById('pothole-address');
+  const hidLat = document.getElementById('pothole-lat');
+  const hidLng = document.getElementById('pothole-lng');
+  const lblLat = document.getElementById('lbl-lat');
+  const lblLng = document.getElementById('lbl-lng');
+  const selCouncil = document.getElementById('council-jurisdiction');
+  const geoDetectBtn = document.getElementById('geo-detect-btn');
+  const geoStatusHint = document.getElementById('geo-status-hint');
+
+  function openReportModal(lat, lng, address = '') {
+    playClickSound();
     
-    if (core === 'overloaded') {
-      diagHarmony.style.color = 'var(--neon-pink)';
+    // Default to Waimate or Christchurch based on current view center if coords not supplied
+    if (!lat || !lng) {
+      const center = map.getCenter();
+      lat = center.lat;
+      lng = center.lng;
+    }
+
+    hidLat.value = lat.toFixed(5);
+    hidLng.value = lng.toFixed(5);
+    lblLat.textContent = lat.toFixed(4);
+    lblLng.textContent = lng.toFixed(4);
+
+    // Auto-detect Council
+    if (lat < -44.2) {
+      selCouncil.value = 'Waimate District Council';
     } else {
-      diagHarmony.style.color = 'var(--neon-cyan)';
+      selCouncil.value = 'Christchurch City Council';
+    }
+
+    if (address) {
+      txtAddress.value = address;
+      geoStatusHint.textContent = 'Location locked from map pin point.';
+    } else {
+      txtAddress.value = '';
+      geoStatusHint.textContent = 'Resolving NZ street address...';
+      reverseGeocode(lat, lng);
+    }
+
+    reportDialog.showModal();
+  }
+
+  function closeReportModal() {
+    reportDialog.close();
+    playClickSound();
+  }
+
+  openReportBtn.addEventListener('click', () => openReportModal());
+  closeModalBtn.addEventListener('click', closeReportModal);
+  cancelReportBtn.addEventListener('click', closeReportModal);
+
+  // Click backdrop closes modal
+  reportDialog.addEventListener('click', (e) => {
+    if (e.target === reportDialog) closeReportModal();
+  });
+
+  // Map Click to drop a report
+  map.on('click', (e) => {
+    openReportModal(e.latlng.lat, e.latlng.lng);
+  });
+
+  // GPS Geolocation button
+  geoDetectBtn.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      geoStatusHint.textContent = 'Geolocation not supported by your browser.';
+      return;
+    }
+
+    geoStatusHint.textContent = 'Querying GPS satellites...';
+    playClickSound();
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        hidLat.value = lat.toFixed(5);
+        hidLng.value = lng.toFixed(5);
+        lblLat.textContent = lat.toFixed(4);
+        lblLng.textContent = lng.toFixed(4);
+
+        if (lat < -44.2) {
+          selCouncil.value = 'Waimate District Council';
+        } else {
+          selCouncil.value = 'Christchurch City Council';
+        }
+
+        reverseGeocode(lat, lng);
+      },
+      (err) => {
+        geoStatusHint.textContent = 'Could not acquire GPS fix (permission denied or timeout).';
+      },
+      { timeout: 7000, enableHighAccuracy: true }
+    );
+  });
+
+  // Reverse Geocoding with OpenStreetMap Nominatim
+  async function reverseGeocode(lat, lng) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+
+      if (data && data.address) {
+        const road = data.address.road || data.address.street || data.address.suburb || '';
+        const town = data.address.city || data.address.town || data.address.village || data.address.county || '';
+        const formatted = [road, town].filter(Boolean).join(', ');
+        txtAddress.value = formatted || data.display_name.split(',').slice(0, 2).join(',');
+        geoStatusHint.textContent = 'Address resolved from NZ OpenStreetMap database.';
+
+        // Council refinement
+        if (formatted.toLowerCase().includes('waimate')) {
+          selCouncil.value = 'Waimate District Council';
+        } else if (formatted.toLowerCase().includes('christchurch') || formatted.toLowerCase().includes('riccarton')) {
+          selCouncil.value = 'Christchurch City Council';
+        }
+      } else {
+        geoStatusHint.textContent = 'Coordinates captured. Enter road name manually.';
+      }
+    } catch (e) {
+      geoStatusHint.textContent = 'Coordinates captured. Enter road name manually.';
     }
   }
 
-  // Fluctuating values (makes system feel live)
-  function startFluctuations() {
-    if (tempInterval) clearInterval(tempInterval);
-    
-    tempInterval = setInterval(() => {
-      const color = previewBlade.getAttribute('data-color');
-      const core = previewBlade.getAttribute('data-core');
-      
-      // Temperature variance
-      let baseTemp = 1240;
-      if (color === 'pink') baseTemp = 1850;
-      if (color === 'green') baseTemp = 980;
-      if (color === 'gold') baseTemp = 1410;
-      
-      const fluctuation = Math.floor(Math.random() * 20) - 10;
-      diagTemp.textContent = `${(baseTemp + fluctuation).toLocaleString()} °C`;
+  // Photo picker radio selection styling
+  const photoChoices = document.querySelectorAll('.photo-choice');
+  photoChoices.forEach(choice => {
+    choice.addEventListener('click', () => {
+      photoChoices.forEach(c => c.classList.remove('selected'));
+      choice.classList.add('selected');
+      const radio = choice.querySelector('input[type="radio"]');
+      if (radio) radio.checked = true;
+    });
+  });
 
-      // Power output variance
-      let basePower = 98.4;
-      let powerFluct = 0;
-      if (core === 'stable') {
-        basePower = 95.2;
-        powerFluct = (Math.random() * 0.2) - 0.1;
-      } else if (core === 'pulsing') {
-        basePower = 98.4;
-        powerFluct = (Math.random() * 1.4) - 0.7;
-      } else if (core === 'overloaded') {
-        basePower = 112.7;
-        powerFluct = (Math.random() * 8.6) - 4.3;
-      }
-      
-      diagPower.textContent = `OUTPUT: ${(basePower + powerFluct).toFixed(1)}%`;
-    }, 800);
-  }
+  // Handle Form Submission
+  reportForm.addEventListener('submit', (e) => {
+    e.preventDefault();
 
-  startFluctuations();
+    const address = txtAddress.value.trim();
+    if (!address) {
+      txtAddress.focus();
+      return;
+    }
 
-  // --- SPECS INTERACTIVE TERMINAL ---
+    const lat = parseFloat(hidLat.value);
+    const lng = parseFloat(hidLng.value);
+    const council = selCouncil.value;
+    const severity = document.getElementById('pothole-severity').value;
+    const lane = document.getElementById('pothole-lane').value;
+    const desc = document.getElementById('pothole-desc').value.trim();
+    const photo = document.querySelector('input[name="photo-sample"]:checked')?.value || 'deep-pothole';
 
-  const commands = {
-    help: 'Available commands:\n  help         Display available system commands\n  clear        Clear screen logs\n  about        Overview of PROJECT BLADE\n  specs        View weapon technical specifications\n  diagnostic   Initiate weapon core scan\n  overload     Push plasma core beyond safety limits\n  system       Check network sync data',
-    about: 'CT-NEON // PROJECT BLADE\n-------------------------\nNext-gen tactical plasma blades designed for covert syndicate operatives.\nFeatures sub-2ms synaptic response speeds and quantum light fields.\nDesigned in Sector 7, Neo City.',
-    specs: 'TECHNICAL BLUEPRINT PARAMETERS:\n- Containment Type: Dual-harmonics magnetic buffer\n- Plasma Core Energy Source: Quantum micro-singularity\n- Response Latency: 0.12ms direct neural link\n- Grip Coating: Carbon-nanotube weave, micro-haptic nodes\n- Thermal dispersion rate: 99.8% internal recovery',
-    system: 'SYSTEM NODE REPORT:\n- Network Sync: Sector 7 Mainframe (ONLINE)\n- Core Wavelength Grid: Stable at 485 THz\n- Operational Temperature: 1,245 C (Safe margin)\n- Battery cell level: 98.4% (Quantum-decay cells)',
-    clear: ''
+    // Region classification
+    let region = 'State Highway';
+    if (council.includes('Waimate')) region = 'Waimate';
+    if (council.includes('Christchurch')) region = 'Christchurch';
+
+    const newIncident = {
+      id: `pot-${Date.now()}`,
+      address: address,
+      lat: lat,
+      lng: lng,
+      council: council,
+      region: region,
+      severity: severity,
+      lane: lane,
+      desc: desc || `Reported ${severity.toLowerCase()} road hazard.`,
+      photo: photo,
+      reportedAt: Date.now(),
+      status: 'Active',
+      upvotes: 1,
+      upvotedByUser: true
+    };
+
+    incidents.unshift(newIncident);
+    try {
+      localStorage.setItem('nz_pothole_incidents', JSON.stringify(incidents));
+    } catch (err) {}
+
+    playAlertSound(severity === 'Critical' || severity === 'Emergency');
+    closeReportModal();
+    reportForm.reset();
+
+    // Re-render
+    renderMapMarkers();
+    renderFeedList();
+    updateStats();
+
+    // Fly map to new incident
+    flyToIncident(newIncident.id);
+  });
+
+  // --- GLOBAL ACTIONS (Upvote / Toggle Fixed) ---
+  window.upvoteIncident = function(id) {
+    const inc = incidents.find(i => i.id === id);
+    if (!inc) return;
+
+    if (inc.upvotedByUser) {
+      inc.upvotes -= 1;
+      inc.upvotedByUser = false;
+    } else {
+      inc.upvotes += 1;
+      inc.upvotedByUser = true;
+      playClickSound();
+    }
+
+    try {
+      localStorage.setItem('nz_pothole_incidents', JSON.stringify(incidents));
+    } catch (e) {}
+
+    renderMapMarkers();
+    renderFeedList();
+
+    // Update opened popup content if active
+    const marker = markerLookup.get(id);
+    if (marker && marker.isPopupOpen()) {
+      marker.closePopup();
+      setTimeout(() => marker.openPopup(), 150);
+    }
   };
 
-  function logToTerminal(text, type = 'response-msg') {
-    const line = document.createElement('div');
-    line.className = `output-line ${type}`;
-    line.textContent = text;
-    terminalOutput.appendChild(line);
-    // Auto scroll
-    terminalOutput.scrollTop = terminalOutput.scrollHeight;
-  }
+  window.toggleFixed = function(id) {
+    const inc = incidents.find(i => i.id === id);
+    if (!inc) return;
 
-  terminalInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const inputVal = terminalInput.value.trim();
-      terminalInput.value = '';
-      
-      if (!inputVal) return;
-      
-      playClickSound();
-
-      // Log the entered command
-      logToTerminal(`> ${inputVal}`, 'user-cmd');
-
-      const lowerCmd = inputVal.toLowerCase();
-
-      if (lowerCmd === 'clear') {
-        terminalOutput.innerHTML = '';
-        return;
-      }
-
-      if (lowerCmd === 'overload') {
-        logToTerminal('WARNING: Initiating core overload safety bypass...', 'error-msg');
-        setTimeout(() => {
-          // Force preview into overloaded mode
-          selectCore.value = 'overloaded';
-          previewBlade.setAttribute('data-core', 'overloaded');
-          updateDiagnostics();
-          playIgnitionSound();
-          logToTerminal('OVERLOAD CRITICAL: Plasma core containment field fluctuating. Diagnostic readings unstable.', 'error-msg');
-        }, 1000);
-        return;
-      }
-
-      if (lowerCmd === 'diagnostic') {
-        logToTerminal('SYSTEM: Running diagnostic sequences...');
-        let progress = 0;
-        const diagInt = setInterval(() => {
-          progress += 25;
-          if (progress <= 100) {
-            logToTerminal(`Checking components... ${progress}%`, 'system-msg');
-          }
-          if (progress === 100) {
-            clearInterval(diagInt);
-            logToTerminal('SYSTEM STATUS: All modules fully functional. Plasma density synced.', 'response-msg');
-          }
-        }, 300);
-        return;
-      }
-
-      if (commands[lowerCmd] !== undefined) {
-        logToTerminal(commands[lowerCmd]);
-      } else {
-        logToTerminal(`Command not recognized: "${inputVal}". Type "help" for database options.`, 'error-msg');
-        playChordSound(false);
-      }
-    }
-  });
-
-  // --- SYNDICATE FORM & DIALOG VALIDATION ---
-
-  function validateField(field) {
-    const input = field.querySelector('input, select');
-    let isValid = true;
-    
-    if (input.required) {
-      if (input.type === 'checkbox') {
-        isValid = input.checked;
-      } else {
-        isValid = input.value.trim() !== '';
-      }
-    }
-    
-    if (isValid && input.type === 'email') {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      isValid = emailRegex.test(input.value);
-    }
-    
-    if (isValid && input.minLength) {
-      isValid = input.value.length >= input.minLength;
-    }
-
-    if (isValid) {
-      field.classList.remove('invalid');
-    } else {
-      field.classList.add('invalid');
-    }
-    
-    return isValid;
-  }
-
-  // Input event triggers live clear of validation error state
-  syndicateForm.querySelectorAll('input, select').forEach(input => {
-    input.addEventListener('input', () => {
-      const field = input.closest('.form-field');
-      if (field.classList.contains('invalid')) {
-        validateField(field);
-      }
-    });
-    
-    input.addEventListener('change', () => {
-      const field = input.closest('.form-field');
-      if (field.classList.contains('invalid')) {
-        validateField(field);
-      }
-    });
-  });
-
-  syndicateForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    
-    let isFormValid = true;
-    syndicateForm.querySelectorAll('.form-field').forEach(field => {
-      const isFieldValid = validateField(field);
-      if (!isFieldValid) {
-        isFormValid = false;
-      }
-    });
-
-    if (isFormValid) {
-      playChordSound(true);
-      
-      // Get handle to personalize dialogue popup
-      const handle = document.getElementById('form-handle').value;
-      document.getElementById('success-message').innerHTML = `Operative <strong>${handle}</strong> has been synced. Credentials transmitted securely to Syndicate Command. Diagnostic ping incoming.`;
-      
-      // Show native dialog modal
-      successDialog.showModal();
-      
-      // Reset form
-      syndicateForm.reset();
-      syndicateForm.querySelectorAll('.form-field').forEach(field => {
-        field.classList.remove('invalid');
-      });
-      
-      logToTerminal(`SYNDICATE: Received incoming connection from Operative Handle: ${handle}`);
-    } else {
-      playChordSound(false);
-    }
-  });
-
-  closeDialogBtn.addEventListener('click', () => {
-    successDialog.close();
+    inc.status = inc.status === 'Repaired' ? 'Active' : 'Repaired';
+    inc.severity = inc.status === 'Repaired' ? 'Fixed' : 'Moderate';
     playClickSound();
-  });
 
-  // Click backdrop of dialog closes it too
-  successDialog.addEventListener('click', (e) => {
-    if (e.target === successDialog) {
-      successDialog.close();
+    try {
+      localStorage.setItem('nz_pothole_incidents', JSON.stringify(incidents));
+    } catch (e) {}
+
+    renderMapMarkers();
+    renderFeedList();
+    updateStats();
+
+    const marker = markerLookup.get(id);
+    if (marker && marker.isPopupOpen()) {
+      marker.closePopup();
+    }
+  };
+
+  // --- KEYBOARD SHORTCUTS & INPUT GUARD ---
+  document.addEventListener('keydown', (e) => {
+    // Input Guard: ignore when focused on input/textarea/select
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) {
+      return;
+    }
+
+    const key = e.key.toLowerCase();
+
+    // 'r' to report
+    if (key === 'r') {
+      e.preventDefault();
+      openReportModal();
+    }
+    // 'c' for Christchurch
+    else if (key === 'c') {
+      e.preventDefault();
+      setRegion('christchurch');
+    }
+    // 'w' for Waimate
+    else if (key === 'w') {
+      e.preventDefault();
+      setRegion('waimate');
+    }
+    // 's' for South Island / Canterbury
+    else if (key === 's') {
+      e.preventDefault();
+      setRegion('canterbury');
+    }
+    // '0' to freeze updates
+    else if (key === '0') {
+      e.preventDefault();
+      isFrozen = !isFrozen;
       playClickSound();
+      const streamText = document.querySelector('.stream-text');
+      if (isFrozen) {
+        streamText.textContent = 'FEED PAUSED [0]';
+        streamText.style.color = 'var(--amber-primary)';
+      } else {
+        streamText.textContent = 'REAL-TIME SYNC';
+        streamText.style.color = 'var(--success-primary)';
+      }
+    }
+    // Escape to close dialog
+    else if (e.key === 'Escape' && reportDialog.open) {
+      closeReportModal();
     }
   });
 
-  // --- MOBILE NAVIGATION BAR ---
-  mobileMenuBtn.addEventListener('click', () => {
-    const isExpanded = mobileMenuBtn.getAttribute('aria-expanded') === 'true';
-    mobileMenuBtn.setAttribute('aria-expanded', !isExpanded);
-    navLinks.classList.toggle('active');
-    playClickSound();
-  });
-
-  // Close mobile nav when clicking links
-  document.querySelectorAll('.nav-link').forEach(link => {
-    link.addEventListener('click', () => {
-      navLinks.classList.remove('active');
-      mobileMenuBtn.setAttribute('aria-expanded', 'false');
-    });
-  });
+  // Initial Boot
+  renderMapMarkers();
+  renderFeedList();
+  updateStats();
 });

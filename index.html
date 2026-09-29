@@ -3,517 +3,288 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="CT-NEON // PROJECT BLADE. Customize, configure, and inspect the next generation of cybernetic blades. Built for high-frequency neural sync.">
-  <title>CT-NEON // PROJECT BLADE</title>
-  
-  <!-- Fonts -->
+  <meta name="description" content="RimReaper - Real-time Pothole and Road Hazard Reporting for Christchurch City & Waimate District, Canterbury, South Island, New Zealand.">
+  <title>RimReaper // NZ Road Hazard & Pothole Reporter (Christchurch & Waimate)</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕳️</text></svg>">
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Share+Tech+Mono&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-  
-  <!-- Favicon -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚔️</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 
-  <!-- Stylesheet -->
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <!-- Custom Stylesheet -->
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="dark">
-  <!-- Cyberpunk Background Grid -->
-  <div class="grid-overlay"></div>
-  <div class="ambient-glow bg-cyan"></div>
-  <div class="ambient-glow bg-pink"></div>
-
-  <!-- Header Navigation -->
-  <header class="header">
-    <div class="header-container">
-      <a href="#" class="logo">
-        <span class="logo-accent">//</span> CT-NEON
-      </a>
-      
-      <nav class="nav-links">
-        <a href="#customizer" class="nav-link">Customizer</a>
-        <a href="#specs" class="nav-link">Specs Terminal</a>
-        <a href="#features" class="nav-link">Features</a>
-        <a href="#pricing" class="nav-link">Pricing</a>
-      </nav>
-
-      <div class="header-actions">
-        <button id="sound-toggle" class="btn btn-icon" aria-label="Toggle sound feedback">
-          <svg class="icon icon-sound-on" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-          <svg class="icon icon-sound-off hide" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
-        </button>
-        <span class="status-badge pulse">
-          <span class="status-dot"></span> SYSTEM: ONLINE
-        </span>
-        <a href="#syndicate" class="btn btn-outline btn-sm btn-nav-action">Join Syndicate</a>
+<body class="dark-theme">
+  <!-- Top Global Navigation Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-title">
+        <span class="brand-badge">NZ HAZARD</span>
+        <span class="brand-name">RimReaper</span>
+        <span class="brand-tag">SOUTH ISLAND // CANTERBURY</span>
       </div>
 
-      <button class="mobile-menu-btn" aria-label="Toggle navigation menu">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="18" x2="20" y2="18"></line></svg>
+      <!-- Quick Region Switchers -->
+      <div class="region-tabs">
+        <button class="region-btn" data-region="christchurch" title="Shortcut: 'C'">
+          <span class="region-indicator chch"></span>
+          <span class="region-text">Christchurch (CCC)</span>
+        </button>
+        <button class="region-btn" data-region="waimate" title="Shortcut: 'W'">
+          <span class="region-indicator waimate"></span>
+          <span class="region-text">Waimate (WDC)</span>
+        </button>
+        <button class="region-btn active" data-region="canterbury" title="Shortcut: 'S'">
+          <span class="region-indicator all"></span>
+          <span class="region-text">All Canterbury / SH1</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <!-- Live NZ Clock with Mandatory Blinking Colon -->
+      <div class="live-clock-card" title="New Zealand Standard Time">
+        <span class="clock-label">NZ TIME</span>
+        <div class="clock-display" id="nz-clock">
+          <span id="clk-hours">12</span><span class="blinking-colon">:</span><span id="clk-mins">00</span><span class="blinking-colon">:</span><span id="clk-secs">00</span>
+          <span id="clk-ampm" class="clock-ampm">PM</span>
+        </div>
+      </div>
+
+      <!-- Live Stream Status -->
+      <div class="live-stream-badge">
+        <span class="pulse-dot"></span>
+        <span class="stream-text">REAL-TIME SYNC</span>
+      </div>
+
+      <!-- Primary Action -->
+      <button id="open-report-btn" class="btn btn-warning" title="Report a Pothole (Shortcut: 'R')">
+        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+        <span>REPORT POTHOLE</span>
+      </button>
+
+      <!-- Audio Mute Toggle -->
+      <button id="sound-toggle-btn" class="btn btn-icon-only" aria-label="Toggle Sound FX" title="Toggle Hazard Audio">
+        <svg class="icon sound-on" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+        <svg class="icon sound-off hide" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
       </button>
     </div>
   </header>
 
-  <main class="main-content">
-    <!-- Hero Section -->
-    <section id="hero" class="hero-section">
-      <div class="container hero-container">
-        <div class="hero-content">
-          <div class="category-tag">PROJECT NEON BLADE // CLASSIFIED</div>
-          <h1 class="hero-title">
-            The Next Evolution of <span class="text-glow-cyan">Cybernetic</span> Warfare
-          </h1>
-          <p class="hero-description">
-            A solid-light tactical blade engineered with sub-nanosecond neural response times, customizable plasma frequencies, and advanced synaptic containment fields.
-          </p>
-          <div class="hero-actions">
-            <a href="#customizer" class="btn btn-primary">
-              Configure Blade <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-right"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </a>
-            <a href="#specs" class="btn btn-outline">
-              Access Terminal
-            </a>
-          </div>
+  <!-- Secondary Information Strip -->
+  <div class="info-strip">
+    <div class="info-strip-left">
+      <span class="info-badge">CANTERBURY ROAD OPS</span>
+      <div class="stat-pill"><span class="stat-num" id="stat-active">0</span> Active Potholes</div>
+      <div class="stat-pill"><span class="stat-num danger" id="stat-critical">0</span> Severe / Rim Breakers</div>
+      <div class="stat-pill"><span class="stat-num success" id="stat-fixed">0</span> Repaired this week</div>
+    </div>
+    <div class="info-strip-right">
+      <span class="hotline-item"><strong>CCC Urgent:</strong> 03 941 8999</span>
+      <span class="hotline-sep">•</span>
+      <span class="hotline-item"><strong>Waimate DC:</strong> 03 689 0000</span>
+      <span class="hotline-sep">•</span>
+      <span class="hotline-item"><strong>NZTA SH1/SH82:</strong> 0800 44 44 49</span>
+    </div>
+  </div>
+
+  <!-- Main Application Workspace (Split 1080p View) -->
+  <main class="app-main">
+    <!-- Map Container (Left / Center) -->
+    <section class="map-viewport-section">
+      <div id="pothole-map" class="map-surface"></div>
+
+      <!-- Floating Map Overlays -->
+      <div class="map-overlay-top">
+        <div class="map-hint-pill">
+          <svg class="hint-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          <span class="hint-text">Click anywhere on the road to drop a real-time pothole report</span>
         </div>
-        <div class="hero-visual">
-          <div class="hero-blade-wrapper">
-            <div class="hero-blade-glow"></div>
-            <div class="hero-blade-graphic"></div>
-            <div class="hero-grid-bg"></div>
+      </div>
+
+      <div class="map-overlay-bottom-left">
+        <!-- Severity Legend -->
+        <div class="legend-card">
+          <div class="legend-title">HAZARD SEVERITY</div>
+          <div class="legend-items">
+            <div class="legend-item"><span class="legend-dot critical"></span> Severe / Emergency (>50mm)</div>
+            <div class="legend-item"><span class="legend-dot moderate"></span> Moderate (25-50mm)</div>
+            <div class="legend-item"><span class="legend-dot minor"></span> Minor / Surface (<25mm)</div>
+            <div class="legend-item"><span class="legend-dot fixed"></span> Repaired / Scheduled</div>
           </div>
         </div>
       </div>
-    </section>
 
-    <!-- Customizer Section -->
-    <section id="customizer" class="section customizer-section">
-      <div class="container">
-        <div class="section-header">
-          <div class="section-subtitle">// INTEGRATED FORGE</div>
-          <h2 class="section-title">Blade Customizer</h2>
-          <p class="section-description">Tune the plasma wavelengths, select containment cores, and customize ergonomic elements to match your neural profile.</p>
-        </div>
-
-        <div class="customizer-grid">
-          <!-- Live Preview Card -->
-          <div class="customizer-preview-card border-glow">
-            <div class="preview-header">
-              <span class="preview-title">SYSTEM PREVIEW: ACTIVE</span>
-              <span class="preview-diag" id="blade-diag-power">OUTPUT: 98.4%</span>
-            </div>
-            
-            <div class="blade-viewport">
-              <div class="grid-lines-micro"></div>
-              
-              <!-- CSS-rendered Cyber Blade -->
-              <div class="cyber-blade" id="preview-blade" data-color="cyan" data-core="pulsing" data-hilt="carbon">
-                <div class="blade-hilt">
-                  <div class="hilt-pommel"></div>
-                  <div class="hilt-grip" id="blade-grip-visual"></div>
-                  <div class="hilt-emitter">
-                    <div class="emitter-port"></div>
-                  </div>
-                  <div class="hilt-guard"></div>
-                </div>
-                
-                <div class="blade-plasma-container">
-                  <!-- Central glowing core -->
-                  <div class="plasma-core"></div>
-                  <!-- Outer glowing sheath -->
-                  <div class="plasma-sheath"></div>
-                  <!-- Unstable particles -->
-                  <div class="plasma-particles">
-                    <div class="particle p1"></div>
-                    <div class="particle p2"></div>
-                    <div class="particle p3"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="preview-footer">
-              <div class="diag-group">
-                <span class="diag-label">TEMP:</span>
-                <span class="diag-val" id="diag-temp">1,240 °C</span>
-              </div>
-              <div class="diag-group">
-                <span class="diag-label">WAVELENGTH:</span>
-                <span class="diag-val" id="diag-wave">485 nm</span>
-              </div>
-              <div class="diag-group">
-                <span class="diag-label">HARMONY:</span>
-                <span class="diag-val" id="diag-harmony">SYNCED</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Control Panel Card -->
-          <div class="customizer-controls border-glow">
-            <div class="controls-header">
-              <h3>Blade Parameters</h3>
-              <p>Calibrate settings before synthesis.</p>
-            </div>
-            
-            <div class="control-groups">
-              <!-- Group 1: Plasma Wavelength (Color) -->
-              <fieldset class="control-group">
-                <legend class="group-label">1. Plasma Wavelength (Color)</legend>
-                <div class="radio-grid">
-                  <label class="radio-card select-cyan" for="color-cyan">
-                    <input type="radio" id="color-cyan" name="blade-color" value="cyan" checked>
-                    <span class="radio-label-box">
-                      <span class="color-dot cyan-dot"></span>
-                      <span class="color-text">Cyan / 485nm</span>
-                    </span>
-                  </label>
-                  
-                  <label class="radio-card select-pink" for="color-pink">
-                    <input type="radio" id="color-pink" name="blade-color" value="pink">
-                    <span class="radio-label-box">
-                      <span class="color-dot pink-dot"></span>
-                      <span class="color-text">Violet / 620nm</span>
-                    </span>
-                  </label>
-                  
-                  <label class="radio-card select-green" for="color-green">
-                    <input type="radio" id="color-green" name="blade-color" value="green">
-                    <span class="radio-label-box">
-                      <span class="color-dot green-dot"></span>
-                      <span class="color-text">Acid / 525nm</span>
-                    </span>
-                  </label>
-                  
-                  <label class="radio-card select-gold" for="color-gold">
-                    <input type="radio" id="color-gold" name="blade-color" value="gold">
-                    <span class="radio-label-box">
-                      <span class="color-dot gold-dot"></span>
-                      <span class="color-text">Amber / 590nm</span>
-                    </span>
-                  </label>
-                </div>
-              </fieldset>
-
-              <!-- Group 2: Core Resonance (Style) -->
-              <div class="control-group">
-                <label class="group-label" for="select-core">2. Core Resonance (Containment)</label>
-                <div class="select-wrapper">
-                  <select id="select-core" class="form-select">
-                    <option value="pulsing" selected>Pulsing Waveform (Default)</option>
-                    <option value="stable">Stable Solid-State (Static)</option>
-                    <option value="overloaded">Overcharged Singularity (Flicker)</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Group 3: Ergonomic Hilt -->
-              <fieldset class="control-group">
-                <legend class="group-label">3. Hilt Ergonomics</legend>
-                <div class="segmented-control">
-                  <label class="segment-option" for="hilt-carbon">
-                    <input type="radio" id="hilt-carbon" name="hilt-material" value="carbon" checked>
-                    <span class="segment-label">Carbon Fiber</span>
-                  </label>
-                  <label class="segment-option" for="hilt-zinc">
-                    <input type="radio" id="hilt-zinc" name="hilt-material" value="zinc">
-                    <span class="segment-label">Matte Zinc</span>
-                  </label>
-                  <label class="segment-option" for="hilt-gold">
-                    <input type="radio" id="hilt-gold" name="hilt-material" value="gold">
-                    <span class="segment-label">Aurum Plated</span>
-                  </label>
-                </div>
-              </fieldset>
-
-              <!-- Action buttons -->
-              <div class="customizer-actions">
-                <button id="synthesis-btn" class="btn btn-primary btn-block">
-                  Synthesize Blade Configuration
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      <!-- Quick Reset Center Button -->
+      <div class="map-overlay-bottom-right">
+        <button id="recenter-btn" class="btn btn-dark btn-sm" title="Re-center View">
+          <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+          Recenter View
+        </button>
       </div>
     </section>
 
-    <!-- Specs / Interactive Terminal Section -->
-    <section id="specs" class="section specs-section">
-      <div class="container">
-        <div class="section-header">
-          <div class="section-subtitle">// DECRYPTED CONSOLE</div>
-          <h2 class="section-title">System Diagnostics</h2>
-          <p class="section-description">Interact with the core systems database. Query blueprints, system parameters, or diagnostic overrides.</p>
+    <!-- Side Panel: Live Real-Time Feed & Filters (Right) -->
+    <aside class="feed-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title-row">
+          <h2 class="sidebar-title">LIVE INCIDENT FEED</h2>
+          <span class="live-counter-pill" id="feed-counter">0 reports</span>
         </div>
+        
+        <!-- Filter Controls -->
+        <div class="filter-bar">
+          <select id="filter-region" class="filter-select" aria-label="Filter by region">
+            <option value="all">All Regions</option>
+            <option value="Christchurch">Christchurch City (CCC)</option>
+            <option value="Waimate">Waimate District (WDC)</option>
+            <option value="State Highway">State Highways (NZTA)</option>
+          </select>
 
-        <div class="terminal-container border-glow">
-          <div class="terminal-titlebar">
-            <div class="terminal-dots">
-              <span class="dot red"></span>
-              <span class="dot yellow"></span>
-              <span class="dot green"></span>
-            </div>
-            <span class="terminal-title-text">root@ct-neon: /system/blades</span>
-            <span class="terminal-status">SYS_STATUS: SECURE</span>
-          </div>
+          <select id="filter-severity" class="filter-select" aria-label="Filter by severity">
+            <option value="all">All Severities</option>
+            <option value="Critical">Severe / Hazard</option>
+            <option value="Moderate">Moderate</option>
+            <option value="Minor">Minor</option>
+          </select>
 
-          <div class="terminal-body">
-            <div class="terminal-output" id="terminal-output">
-              <div class="output-line system-msg">CT-NEON Core Terminal [Version 4.9.11-Blade]</div>
-              <div class="output-line system-msg">Initializing connection to plasma containment database... Success.</div>
-              <div class="output-line system-msg">Type <span class="text-glow-pink">help</span> to view available system commands.</div>
-              <div class="output-line">&nbsp;</div>
-            </div>
-            <div class="terminal-input-line">
-              <span class="terminal-prompt">&gt;</span>
-              <input type="text" id="terminal-input" class="terminal-textbox" placeholder="Enter diagnostics query..." autocomplete="off" spellcheck="false">
-            </div>
-          </div>
+          <select id="filter-status" class="filter-select" aria-label="Filter by status">
+            <option value="all">All Statuses</option>
+            <option value="Active">Open / Verified</option>
+            <option value="Scheduled">Scheduled</option>
+            <option value="Repaired">Repaired</option>
+          </select>
         </div>
       </div>
-    </section>
 
-    <!-- Features Section -->
-    <section id="features" class="section features-section">
-      <div class="container">
-        <div class="section-header">
-          <div class="section-subtitle">// TECHNICAL SPECIFICATIONS</div>
-          <h2 class="section-title">Hardware Architecture</h2>
-          <p class="section-description">Uncompromising performance, built with quantum-grade components for the modern operative.</p>
-        </div>
-
-        <div class="features-grid">
-          <!-- Card 1 -->
-          <div class="feature-card border-glow">
-            <div class="feature-icon-wrapper">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon text-glow-cyan"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
-            </div>
-            <h3 class="feature-title">Solid-State Plasma Core</h3>
-            <p class="feature-text">High-density magnetic shielding wraps a mini-singularity core, preventing leakage while emitting uniform light density.</p>
-          </div>
-
-          <!-- Card 2 -->
-          <div class="feature-card border-glow">
-            <div class="feature-icon-wrapper">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon text-glow-pink"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-            </div>
-            <h3 class="feature-title">Synaptic Haptic Coupling</h3>
-            <p class="feature-text">Sub-dermal neural sensors in the grip map directly to your motor cortex, enabling weapon activation in less than 2 milliseconds.</p>
-          </div>
-
-          <!-- Card 3 -->
-          <div class="feature-card border-glow">
-            <div class="feature-icon-wrapper">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon text-glow-green"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-            </div>
-            <h3 class="feature-title">Quantum Containment</h3>
-            <p class="feature-text">Dual harmonic fields guarantee zero thermal emission except on direct collision. Operates in total silence during stealth operations.</p>
-          </div>
-        </div>
+      <!-- Real-Time Scrollable Feed List -->
+      <div class="feed-scroll-container" id="pothole-feed-list">
+        <!-- Rendered dynamically by app.js -->
       </div>
-    </section>
 
-    <!-- Pricing Section -->
-    <section id="pricing" class="section pricing-section">
-      <div class="container">
-        <div class="section-header">
-          <div class="section-subtitle">// ACCESS CLEARANCE</div>
-          <h2 class="section-title">Acquisition Tiers</h2>
-          <p class="section-description">Select your operating access clearance and synthesize the blade that meets your threat vector demands.</p>
-        </div>
-
-        <div class="pricing-grid">
-          <!-- Card 1: Mercenary -->
-          <div class="pricing-card border-glow">
-            <div class="pricing-header">
-              <span class="tier-name">MERCENARY TIER</span>
-              <div class="price-box">
-                <span class="price">$14,500</span>
-                <span class="price-period">/ Single Unit</span>
-              </div>
-            </div>
-            <div class="pricing-divider"></div>
-            <ul class="pricing-features">
-              <li>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                Cyan Core Wavelength
-              </li>
-              <li>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                Zinc Alloy Hilt Grip
-              </li>
-              <li>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                Standard Haptic Sync (5ms)
-              </li>
-              <li class="disabled">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-cross"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                Neural Overload Buffer
-              </li>
-            </ul>
-            <div class="pricing-footer">
-              <a href="#syndicate" class="btn btn-outline btn-block">Purchase Blueprint</a>
-            </div>
-          </div>
-
-          <!-- Card 2: Syndicate Operative (Premium Highlighted) -->
-          <div class="pricing-card border-glow popular">
-            <div class="popular-badge">MOST DEMANDED</div>
-            <div class="pricing-header">
-              <span class="tier-name text-glow-pink">SYNDICATE RECRUIT</span>
-              <div class="price-box">
-                <span class="price">$28,000</span>
-                <span class="price-period">/ Single Unit</span>
-              </div>
-            </div>
-            <div class="pricing-divider"></div>
-            <ul class="pricing-features">
-              <li>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                All Wavelength Channels (All Colors)
-              </li>
-              <li>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                Carbon Fiber Grip / Aurum plating
-              </li>
-              <li>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                Hyper-Sync Haptic Sensor (1.5ms)
-              </li>
-              <li>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                Singularity Containment Core
-              </li>
-            </ul>
-            <div class="pricing-footer">
-              <a href="#syndicate" class="btn btn-primary btn-block">Acquire Authorization</a>
-            </div>
-          </div>
-
-          <!-- Card 3: Black Ops -->
-          <div class="pricing-card border-glow">
-            <div class="pricing-header">
-              <span class="tier-name">BLACK OPS CLASSIFIED</span>
-              <div class="price-box">
-                <span class="price">CONTACT US</span>
-                <span class="price-period">/ Syndicate Authorization</span>
-              </div>
-            </div>
-            <div class="pricing-divider"></div>
-            <ul class="pricing-features">
-              <li>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                Encrypted Custom Waveforms
-              </li>
-              <li>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                Nano-lattice Grip Customization
-              </li>
-              <li>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                Direct Cerebral Cortex Link
-              </li>
-              <li>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                Active Camouflage Shroud
-              </li>
-            </ul>
-            <div class="pricing-footer">
-              <a href="#syndicate" class="btn btn-outline btn-block">Initiate Secure Channel</a>
-            </div>
-          </div>
-        </div>
+      <!-- Keyboard Shortcuts Footer Helper -->
+      <div class="sidebar-footer">
+        <span class="shortcut-tip"><kbd>R</kbd> Report</span>
+        <span class="shortcut-tip"><kbd>C</kbd> Christchurch</span>
+        <span class="shortcut-tip"><kbd>W</kbd> Waimate</span>
+        <span class="shortcut-tip"><kbd>S</kbd> South Island</span>
+        <span class="shortcut-tip"><kbd>0</kbd> Freeze</span>
       </div>
-    </section>
-
-    <!-- Join Syndicate Form Section -->
-    <section id="syndicate" class="section syndicate-section">
-      <div class="container syndicate-container">
-        <div class="form-card border-glow">
-          <div class="form-header">
-            <span class="form-badge">// SECURE COMMUNICATOR</span>
-            <h2>Join the Syndicate Network</h2>
-            <p>Establish coordinates to receive system updates, technical blueprints, and clearance notices.</p>
-          </div>
-          
-          <form id="syndicate-form" novalidate>
-            <div class="form-grid">
-              <div class="form-field">
-                <label for="form-handle">Operative Handle</label>
-                <div class="input-container">
-                  <input type="text" id="form-handle" name="handle" placeholder="e.g., K9_SPECTRE" required minlength="3" autocomplete="username">
-                  <span class="field-error">Handle must be at least 3 characters.</span>
-                </div>
-              </div>
-
-              <div class="form-field">
-                <label for="form-email">Sub-Neural Relay (Email)</label>
-                <div class="input-container">
-                  <input type="email" id="form-email" name="email" placeholder="e.g., spectre@syndicate.net" required autocomplete="email">
-                  <span class="field-error">Please enter a valid secure relay channel.</span>
-                </div>
-              </div>
-
-              <div class="form-field full-width">
-                <label for="form-sector">Operating Sector</label>
-                <div class="select-wrapper">
-                  <select id="form-sector" name="sector" class="form-select">
-                    <option value="neon-city">Neon City Core (Sector 7)</option>
-                    <option value="orbital">Orbital Ring Station 4</option>
-                    <option value="underground">Sub-level Slums</option>
-                    <option value="classified">Classified / Wandering Operative</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div class="form-field checkbox-field full-width">
-                <label class="checkbox-container" for="form-agreement">
-                  <input type="checkbox" id="form-agreement" name="agreement" required>
-                  <span class="checkbox-box"></span>
-                  <span class="checkbox-text">I acknowledge that system activation data is linked to my biometrics and cannot be transferred without clearance.</span>
-                </label>
-                <span class="field-error">You must accept system rules to continue.</span>
-              </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary btn-block">
-              Transmit Credentials
-            </button>
-          </form>
-        </div>
-      </div>
-    </section>
+    </aside>
   </main>
 
-  <!-- Notification Dialog -->
-  <dialog id="success-dialog" class="success-dialog border-glow">
-    <div class="dialog-content">
-      <div class="dialog-icon-wrapper pulse-fast">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="icon"><polyline points="20 6 9 17 4 12"></polyline></svg>
+  <!-- Report Pothole Modal Dialog -->
+  <dialog id="report-dialog" class="report-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-badge">// SUBMIT HAZARD</span>
+          <h3 class="modal-title">Report Pothole in Real Time</h3>
+        </div>
+        <button id="close-modal-btn" class="close-btn" aria-label="Close dialog">&times;</button>
       </div>
-      <h3>TRANSMISSION INITIATED</h3>
-      <p id="success-message">Your credentials have been securely transmitted to Syndicate High Command. A neural ping will arrive shortly.</p>
-      <button id="close-dialog-btn" class="btn btn-outline btn-sm">Acknowledge</button>
+
+      <form id="report-form" class="modal-form" novalidate>
+        <!-- Coordinates & Location Resolution -->
+        <div class="form-row">
+          <div class="form-field flex-2">
+            <label for="pothole-address">Road / Location Description *</label>
+            <div class="input-with-action">
+              <input type="text" id="pothole-address" name="address" placeholder="e.g. Queen St near High St, Waimate" required autocomplete="off">
+              <button type="button" id="geo-detect-btn" class="action-btn" title="Use Current GPS Coordinates">
+                <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
+                <span>GPS Locate</span>
+              </button>
+            </div>
+            <span class="field-hint" id="geo-status-hint">Click on map or use GPS to auto-fill</span>
+          </div>
+
+          <div class="form-field flex-1">
+            <label for="council-jurisdiction">Council Jurisdiction *</label>
+            <select id="council-jurisdiction" name="council" required>
+              <option value="Waimate District Council">Waimate District Council (WDC)</option>
+              <option value="Christchurch City Council">Christchurch City Council (CCC)</option>
+              <option value="NZTA Waka Kotahi">NZTA Waka Kotahi (SH1 / SH82)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Coordinates Hidden / Readout -->
+        <div class="coords-strip">
+          <span>LAT: <strong id="lbl-lat">-44.7333</strong></span>
+          <span>LNG: <strong id="lbl-lng">171.0500</strong></span>
+          <span class="coords-note">(Target pin locked on map)</span>
+        </div>
+        <input type="hidden" id="pothole-lat" name="lat" value="-44.7333">
+        <input type="hidden" id="pothole-lng" name="lng" value="171.0500">
+
+        <!-- Severity & Road Position -->
+        <div class="form-row">
+          <div class="form-field flex-1">
+            <label for="pothole-severity">Hazard Severity *</label>
+            <select id="pothole-severity" name="severity" required>
+              <option value="Critical" selected>🚨 Severe / Rim Hazard (>50mm depth)</option>
+              <option value="Moderate">⚠️ Moderate (25mm - 50mm depth)</option>
+              <option value="Minor">🟡 Minor / Surface Crack (<25mm depth)</option>
+              <option value="Emergency">⛔ Critical Emergency (Immediate road block)</option>
+            </select>
+          </div>
+
+          <div class="form-field flex-1">
+            <label for="pothole-lane">Lane / Position on Road *</label>
+            <select id="pothole-lane" name="lane" required>
+              <option value="Main Traffic Lane">Main Traffic Lane</option>
+              <option value="Centerline / Divider">Centerline / Road Divider</option>
+              <option value="Left Shoulder / Kerb">Left Shoulder / Kerb</option>
+              <option value="Cycle Lane / Verge">Cycle Lane / Pedestrian Verge</option>
+              <option value="Intersection / Roundabout">Intersection / Roundabout</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Photo & Description -->
+        <div class="form-field">
+          <label for="pothole-desc">Details & Traffic Impact</label>
+          <textarea id="pothole-desc" name="desc" rows="2" placeholder="e.g. Deep hole after heavy rain near railway crossing; causing cars to swerve into oncoming traffic." maxlength="250"></textarea>
+        </div>
+
+        <fieldset class="form-field" style="border:none; padding:0; margin:0;">
+          <legend style="font-size:0.76rem; font-weight:600; color:var(--text-muted); margin-bottom:0.35rem;">Hazard Photo Sample (Auto-Assigned or Custom)</legend>
+          <div class="photo-picker-row">
+            <label class="photo-choice selected" for="photo-deep">
+              <input type="radio" id="photo-deep" name="photo-sample" value="deep-pothole" checked>
+              <span class="photo-choice-label">Deep Asphalt Crater</span>
+            </label>
+            <label class="photo-choice" for="photo-edge">
+              <input type="radio" id="photo-edge" name="photo-sample" value="gravel-edge">
+              <span class="photo-choice-label">Rural Road Edge Drop</span>
+            </label>
+            <label class="photo-choice" for="photo-urban">
+              <input type="radio" id="photo-urban" name="photo-sample" value="urban-crevice">
+              <span class="photo-choice-label">Urban Intersection Sink</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- Submit Actions -->
+        <div class="modal-actions">
+          <button type="button" id="cancel-report-btn" class="btn btn-outline">Cancel</button>
+          <button type="submit" class="btn btn-warning">Broadcast Report in Real Time</button>
+        </div>
+      </form>
     </div>
   </dialog>
 
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="container footer-container">
-      <div class="footer-left">
-        <span class="footer-logo">// CT-NEON</span>
-        <span class="footer-copyright">&copy; 2088 CT-NEON Corp. All hardware blueprints classified.</span>
-      </div>
-      <div class="footer-right">
-        <div class="footer-status-pings">
-          <span class="status-reading">GRID: 50.4 Hz</span>
-          <span class="status-reading">CELLS: HYPER-STABLE</span>
-          <span class="status-reading">TEMPORAL LATENCY: 0.12ms</span>
-        </div>
-      </div>
-    </div>
-  </footer>
-
-  <!-- Scripts -->
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- Application Client Engine -->
   <script src="app.js"></script>
 </body>
 </html>

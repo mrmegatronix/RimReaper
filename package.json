@@ -1,11 +1,11 @@
 {
-  "name": "ct-neon-landing",
+  "name": "rimreaper",
   "version": "1.0.0",
-  "description": "CT-NEON // PROJECT BLADE. Shadcn-style landing page with custom cyberpunk aesthetics.",
+  "description": "RimReaper - Real-time Pothole and Road Hazard Reporter for Waimate and Christchurch, South Island, New Zealand",
   "main": "index.html",
   "scripts": {
-    "dev": "serve -l 3000",
-    "start": "serve -l 3000"
+    "dev": "serve -l 3001",
+    "start": "serve -l 3001"
   },
   "dependencies": {},
   "devDependencies": {
